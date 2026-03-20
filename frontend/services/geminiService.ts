@@ -60,6 +60,7 @@ interface CustomerAnalysis {
   statusSuggestion: 'Lead' | 'Active' | 'VIP' | 'At Risk';
   extractedPreferences: string[];
   summary: string;
+  nextAction: string;
 }
 
 export const analyzeCustomerInteraction = async (
@@ -89,9 +90,10 @@ export const analyzeCustomerInteraction = async (
               items: { type: Type.STRING },
               description: "List of scent notes or product types the user likes"
             },
-            summary: { type: Type.STRING, description: "A one sentence summary of the interaction." }
+            summary: { type: Type.STRING, description: "A concise summary of the customer's profile and recent interactions." },
+            nextAction: { type: Type.STRING, description: "A specific recommended action for the sales agent (e.g., 'Suggest Bergamot sample', 'Send apology gift')." }
           },
-          required: ['sentiment', 'statusSuggestion', 'extractedPreferences', 'summary']
+          required: ['sentiment', 'statusSuggestion', 'extractedPreferences', 'summary', 'nextAction']
         }
       }
     });
@@ -104,7 +106,8 @@ export const analyzeCustomerInteraction = async (
       sentiment: 'Neutral',
       statusSuggestion: 'Active',
       extractedPreferences: [],
-      summary: "Analysis failed."
+      summary: "Analysis failed.",
+      nextAction: "Review manually"
     };
   }
 };

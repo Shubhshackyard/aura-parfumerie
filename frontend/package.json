@@ -1,14 +1,6 @@
 {
   "name": "aura-parfumerie",
   "private": true,
-<<<<<<< HEAD
-  "scripts": {
-    "dev:frontend": "cd frontend && npm run dev",
-    "dev:backend": "cd backend && npm run dev",
-    "dev": "npm run dev:frontend"
-  }
-}
-=======
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -30,4 +22,3 @@
     "vite": "^6.2.0"
   }
 }
->>>>>>> bb8ab47a58fbfcba34c343374a1502f29916ad3c

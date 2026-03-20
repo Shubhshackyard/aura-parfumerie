@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { ShoppingBag, Menu, User as UserIcon, LogOut, Store, LayoutDashboard } from 'lucide-react';
-import { ViewMode, User } from '../types';
+import { ShoppingBag, Menu, User, Sparkles, Store } from 'lucide-react';
+import { ViewMode } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,12 +8,10 @@ interface LayoutProps {
   onNavigate: (view: ViewMode) => void;
   cartItemCount?: number;
   onOpenCart?: () => void;
-  user: User | null;
-  onLogout: () => void;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ 
-  children, currentView, onNavigate, cartItemCount = 0, onOpenCart, user, onLogout
+  children, currentView, onNavigate, cartItemCount = 0, onOpenCart 
 }) => {
   return (
     <div className="min-h-screen bg-brand-50 text-brand-900 font-sans selection:bg-brand-200">
@@ -44,66 +41,34 @@ export const Layout: React.FC<LayoutProps> = ({
 
             <div className="hidden md:flex space-x-8 text-sm uppercase tracking-widest font-medium text-brand-600">
               <button onClick={() => onNavigate('shop')} className={`hover:text-brand-900 transition ${currentView === 'shop' ? 'text-brand-900 underline underline-offset-4' : ''}`}>Shop</button>
-              <button onClick={() => onNavigate('about')} className={`hover:text-brand-900 transition ${currentView === 'about' ? 'text-brand-900 underline underline-offset-4' : ''}`}>About</button>
-              <button onClick={() => onNavigate('journal')} className={`hover:text-brand-900 transition ${currentView === 'journal' ? 'text-brand-900 underline underline-offset-4' : ''}`}>Journal</button>
-              <button onClick={() => onNavigate('concierge')} className={`hover:text-brand-900 transition ${currentView === 'concierge' ? 'text-brand-900 underline underline-offset-4' : ''}`}>Concierge</button>
+              <a href="#" className="hover:text-brand-900 transition">About</a>
+              <a href="#" className="hover:text-brand-900 transition">Journal</a>
+              <a href="#" className="hover:text-brand-900 transition">Concierge</a>
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* Cart Icon - Show on most pages except maybe CRM/Auth */}
-              {currentView !== 'crm' && (
-                <button 
-                  onClick={onOpenCart}
-                  className="p-2 hover:bg-brand-100 rounded-full transition relative group"
-                >
-                  <ShoppingBag className="w-5 h-5" />
-                  {cartItemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-brand-700 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
-                      {cartItemCount}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {user ? (
-                <div className="flex items-center gap-3 pl-2 border-l border-brand-200">
+              {(currentView === 'landing' || currentView === 'shop') ? (
+                <>
                   <button 
-                    onClick={() => onNavigate('profile')}
-                    className="flex items-center gap-2 group"
+                    onClick={onOpenCart}
+                    className="p-2 hover:bg-brand-100 rounded-full transition relative group"
                   >
-                     <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-brand-200 group-hover:border-brand-400 transition" />
-                     <span className="text-sm font-medium hidden sm:block group-hover:text-brand-700">{user.name.split(' ')[0]}</span>
+                    <ShoppingBag className="w-5 h-5" />
+                    {cartItemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-brand-700 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+                        {cartItemCount}
+                      </span>
+                    )}
                   </button>
-                  
-                  {user.role === 'admin' && currentView !== 'crm' && (
-                    <button 
-                      onClick={() => onNavigate('crm')}
-                      className="text-xs bg-brand-800 text-white px-3 py-1.5 rounded-full hover:bg-brand-700 transition"
-                      title="CRM Dashboard"
-                    >
-                      <LayoutDashboard size={14} />
-                    </button>
-                  )}
-                  
                   <button 
-                    onClick={onLogout}
-                    className="p-2 text-brand-400 hover:text-brand-800 hover:bg-brand-100 rounded-full transition"
-                    title="Logout"
+                    onClick={() => onNavigate('crm')}
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wider border border-brand-300 rounded-full hover:bg-brand-800 hover:text-white transition-all"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <User className="w-4 h-4" />
+                    Partner Login
                   </button>
-                </div>
+                </>
               ) : (
-                <button 
-                  onClick={() => onNavigate('auth')}
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wider border border-brand-300 rounded-full hover:bg-brand-800 hover:text-white transition-all ${currentView === 'auth' ? 'bg-brand-800 text-white' : ''}`}
-                >
-                  <UserIcon className="w-4 h-4" />
-                  Sign In
-                </button>
-              )}
-
-              {currentView === 'crm' && user?.role === 'admin' && (
                 <button 
                   onClick={() => onNavigate('shop')}
                   className="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-brand-800 text-white rounded-full hover:bg-brand-700 transition-all"
@@ -136,19 +101,19 @@ export const Layout: React.FC<LayoutProps> = ({
             <div>
               <h4 className="font-serif text-lg text-white mb-6">Collections</h4>
               <ul className="space-y-3 text-sm text-brand-300">
-                <li onClick={() => onNavigate('shop')} className="hover:text-white cursor-pointer transition">Signature</li>
-                <li onClick={() => onNavigate('shop')} className="hover:text-white cursor-pointer transition">Seasonal</li>
-                <li onClick={() => onNavigate('shop')} className="hover:text-white cursor-pointer transition">Home Fragrance</li>
-                <li onClick={() => onNavigate('shop')} className="hover:text-white cursor-pointer transition">Gift Sets</li>
+                <li className="hover:text-white cursor-pointer transition">Signature</li>
+                <li className="hover:text-white cursor-pointer transition">Seasonal</li>
+                <li className="hover:text-white cursor-pointer transition">Home Fragrance</li>
+                <li className="hover:text-white cursor-pointer transition">Gift Sets</li>
               </ul>
             </div>
             <div>
               <h4 className="font-serif text-lg text-white mb-6">Client Care</h4>
               <ul className="space-y-3 text-sm text-brand-300">
-                <li onClick={() => onNavigate('concierge')} className="hover:text-white cursor-pointer transition">Contact Concierge</li>
-                <li onClick={() => onNavigate('about')} className="hover:text-white cursor-pointer transition">Shipping & Returns</li>
-                <li onClick={() => onNavigate('concierge')} className="hover:text-white cursor-pointer transition">Scent Profiling</li>
-                <li onClick={() => onNavigate('profile')} className="hover:text-white cursor-pointer transition">Track Order</li>
+                <li className="hover:text-white cursor-pointer transition">Contact Concierge</li>
+                <li className="hover:text-white cursor-pointer transition">Shipping & Returns</li>
+                <li className="hover:text-white cursor-pointer transition">Scent Profiling</li>
+                <li className="hover:text-white cursor-pointer transition">Track Order</li>
               </ul>
             </div>
             <div>

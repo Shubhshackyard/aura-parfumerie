@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 # Aura Parfumerie 🌿✨
 
@@ -26,6 +27,7 @@ Built with **React**, **Tailwind CSS**, **Framer Motion**, and powered by **Goog
     *   *AI Content Generation*: Generate subject lines and email body copy based on a topic and target segment (e.g., "Write a teaser for VIPs about the new Jasmine scent").
 *   **Inventory Management**: Add and edit products.
     *   *AI Descriptions*: Auto-generate poetic, luxury product descriptions based on a list of scent notes.
+    *   *Bulk Import*: Admins can import products via a JSON file using `POST /api/products/bulk` (protected). A `frontend/data/sample-products.json` is available as an example.
 *   **Order Management**: Track and update order statuses (Pending -> Delivered).
 
 ---
@@ -103,3 +105,25 @@ The app uses a simulated authentication service (`services/authService.ts`).
 ```bash
 npm start
 ```
+=======
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
+
+# Run and deploy your AI Studio app
+
+This contains everything you need to run your app locally.
+
+View your app in AI Studio: https://ai.studio/apps/drive/16UILDyH1KVoDa4y94OVJDPdh07zB615C
+
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
+>>>>>>> bb8ab47a58fbfcba34c343374a1502f29916ad3c

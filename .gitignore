@@ -1,3 +1,20 @@
+<<<<<<< HEAD
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+
+# Environment files
+.env
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+=======
 # Logs
 logs
 *.log
@@ -11,11 +28,16 @@ node_modules
 dist
 dist-ssr
 *.local
+>>>>>>> bb8ab47a58fbfcba34c343374a1502f29916ad3c
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+<<<<<<< HEAD
+.idea/
+=======
 .idea
+>>>>>>> bb8ab47a58fbfcba34c343374a1502f29916ad3c
 .DS_Store
 *.suo
 *.ntvs*

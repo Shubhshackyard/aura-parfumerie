@@ -1,0 +1,187 @@
+[
+  {
+    "category": "Candle",
+    "item": "Apple Cinnamon",
+    "size": "100",
+    "quantity": 10,
+    "mrp": 149,
+    "offer": "150 for 2"
+  },
+  {
+    "category": "Candle",
+    "item": "Sage Cidar",
+    "size": "100",
+    "quantity": 10,
+    "mrp": 149,
+    "offer": "400 for 6"
+  },
+  {
+    "category": "Incense Stick",
+    "item": "Oud Masala",
+    "size": "40",
+    "quantity": 13,
+    "mrp": 90,
+    "offer": "149 for 2"
+  },
+  {
+    "category": "Incense Stick",
+    "item": "Majuma",
+    "size": "40",
+    "quantity": 2,
+    "mrp": 90,
+    "offer": "149 for 3"
+  },
+  {
+    "category": "Incense Stick",
+    "item": "Nag Champa",
+    "size": "40",
+    "quantity": 2,
+    "mrp": 90,
+    "offer": "149 for 4"
+  },
+  {
+    "category": "Incense Stick",
+    "item": "Mogra",
+    "size": "40",
+    "quantity": 1,
+    "mrp": 90,
+    "offer": "149 for 5"
+  },
+  {
+    "category": "Incense Stick",
+    "item": "Rose",
+    "size": "40",
+    "quantity": 1,
+    "mrp": 90,
+    "offer": "149 for 6"
+  },
+  {
+    "category": "Incense Stick",
+    "item": "Elegance",
+    "size": "40",
+    "quantity": 1,
+    "mrp": 90,
+    "offer": "149 for 7"
+  },
+  {
+    "category": "Incense Stick",
+    "item": "Kasturi",
+    "size": "40",
+    "quantity": 1,
+    "mrp": 90,
+    "offer": "149 for 8"
+  },
+  {
+    "category": "Incense Stick",
+    "item": "Loban",
+    "size": "40",
+    "quantity": 20,
+    "mrp": 90,
+    "offer": "149 for 9"
+  },
+  {
+    "category": "Floor Cleaner",
+    "item": "Pine Oil",
+    "size": "500",
+    "quantity": 10,
+    "mrp": 200,
+    "offer": "349 for 2"
+  },
+  {
+    "category": "Floor Cleaner",
+    "item": "Pine Oil",
+    "size": "50",
+    "quantity": 30,
+    "mrp": 30,
+    "offer": "150 for 6"
+  },
+  {
+    "category": "Air Freshner",
+    "item": "Jasmin",
+    "size": "100",
+    "quantity": 5,
+    "mrp": 99,
+    "offer": "180 for 2"
+  },
+  {
+    "category": "Backflow",
+    "item": "Loban",
+    "size": "200",
+    "quantity": 5,
+    "mrp": 149,
+    "offer": "250 for 2"
+  },
+  {
+    "category": "Backflow",
+    "item": "Sandal",
+    "size": "200",
+    "quantity": 5,
+    "mrp": 149,
+    "offer": "250 for 3"
+  },
+  {
+    "category": "Backflow",
+    "item": "Rose",
+    "size": "200",
+    "quantity": 5,
+    "mrp": 149,
+    "offer": "250 for 4"
+  },
+  {
+    "category": "Backflow",
+    "item": "Sage Cedar",
+    "size": "200",
+    "quantity": 5,
+    "mrp": 149,
+    "offer": "250 for 5"
+  },
+  {
+    "category": "Backflow",
+    "item": "Oud",
+    "size": "200",
+    "quantity": 5,
+    "mrp": 149,
+    "offer": "250 for 6"
+  },
+  {
+    "category": "Ceramic",
+    "item": "Backflow",
+    "size": "Large",
+    "quantity": 4,
+    "mrp": 299,
+    "offer": "399 Combo"
+  },
+  {
+    "category": "Car Perfume",
+    "item": "Auriya",
+    "size": "10",
+    "quantity": 15,
+    "mrp": 250,
+    "offer": "449 for 2"
+  },
+  {
+    "category": "Car Perfume",
+    "item": "Zam Zam",
+    "size": "10",
+    "quantity": 15,
+    "mrp": 250,
+    "offer": "449 for 2"
+  },
+  {
+    "category": "Extrait - 30%",
+    "item": "Spray",
+    "size": "10",
+    "quantity": 50,
+    "mrp": 99,
+    "offer": "499 for 6"
+  },
+  {
+    "category": "Personal Care",
+    "item": "Hair Oil",
+    "size": "200",
+    "quantity": 100,
+    "mrp": 679,
+    "offer": "50%",
+    "image": "https://thumbs.dreamstime.com/b/vertical-image-mock-up-amber-colored-glass-bottle-dropper-lid-beige-background-floral-shadow-face-vertical-243041191.jpg"
+  }
+]

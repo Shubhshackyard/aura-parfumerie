@@ -1,15 +1,32 @@
-import React, { useState, useRef, useEffect } from 'react';
+
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Paperclip, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Message } from '../types';
 import { getConciergeResponse } from '../services/geminiService';
+import { apiService } from '../services/api';
 
 interface ChatWidgetProps {
   onNewMessage?: (msg: Message) => void;
+  isOpen?: boolean;
+  onToggle?: () => void;
+  currentUserId?: string;
+  currentUserName?: string;
 }
 
-export const ChatWidget: React.FC<ChatWidgetProps> = ({ onNewMessage }) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const ChatWidget: React.FC<ChatWidgetProps> = ({ onNewMessage, isOpen: controlledIsOpen, onToggle, currentUserId, currentUserName }) => {
+  // Use controlled state if provided, otherwise local state
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+
+  const toggleOpen = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalIsOpen(!internalIsOpen);
+    }
+  };
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -32,6 +49,33 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ onNewMessage }) => {
     scrollToBottom();
   }, [messages, isOpen]);
 
+  // Poll for new messages from Telegram (Admin)
+  useEffect(() => {
+    if (!isOpen || !currentUserId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const remoteMsgs = await apiService.getMessages(currentUserId);
+        // In a real app, merge carefully. Here we just replace if length differs to show new msgs.
+        if (remoteMsgs.length > messages.length) {
+          // Preserve local "typing" state or system messages if needed, 
+          // but for simplicity, we append the difference or sync.
+          // For this demo, let's just append the last one if it's new
+          const lastRemote = remoteMsgs[remoteMsgs.length - 1];
+          const lastLocal = messages[messages.length - 1];
+
+          if (lastRemote && lastRemote.content !== lastLocal.content) {
+            setMessages(prev => [...prev, lastRemote]);
+          }
+        }
+      } catch (e) {
+        console.error("Polling error", e);
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [isOpen, currentUserId, messages]);
+
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
@@ -46,13 +90,21 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ onNewMessage }) => {
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsTyping(true);
-    
+
     // Notify parent (for CRM simulation)
     if (onNewMessage) onNewMessage(userMsg);
 
+    // 1. Send to Google Sheets (Telegram)
+    if (currentUserId && currentUserName) {
+      apiService.sendMessage(currentUserId, currentUserName, inputValue).catch(console.error);
+    }
+
     // AI Response
+    // Optional: You can keep the AI response for immediate feedback, 
+    // or remove it if you want ONLY human reply via Telegram.
+    // For now, we keep it as "Concierge" while you wait for human.
     const responseText = await getConciergeResponse(messages, userMsg.content);
-    
+
     const agentMsg: Message = {
       id: (Date.now() + 1).toString(),
       sender: 'agent',
@@ -81,7 +133,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ onNewMessage }) => {
         animate={{ scale: 1 }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(true)}
+        onClick={toggleOpen}
         className={`fixed bottom-8 right-8 z-40 p-4 rounded-full shadow-2xl transition-colors duration-300 
           ${isOpen ? 'bg-transparent shadow-none pointer-events-none' : 'bg-brand-800 text-white'}
         `}
@@ -111,7 +163,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ onNewMessage }) => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                 <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-brand-800 rounded">
+                <button onClick={toggleOpen} className="p-1 hover:bg-brand-800 rounded">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -124,8 +176,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ onNewMessage }) => {
                   key={channel}
                   onClick={() => setActiveChannel(channel)}
                   className={`text-xs px-3 py-1 rounded-full capitalize border transition-colors
-                    ${activeChannel === channel 
-                      ? 'bg-brand-800 text-white border-brand-800' 
+                    ${activeChannel === channel
+                      ? 'bg-brand-800 text-white border-brand-800'
                       : 'bg-white text-brand-600 border-brand-200 hover:border-brand-400'
                     }`}
                 >
@@ -143,16 +195,16 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ onNewMessage }) => {
                 >
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm
-                      ${msg.sender === 'user' 
-                        ? 'bg-brand-800 text-white rounded-br-none' 
+                      ${msg.sender === 'user'
+                        ? 'bg-brand-800 text-white rounded-br-none'
                         : 'bg-white text-brand-900 rounded-bl-none border border-brand-100'
                       }`}
                   >
                     <p>{msg.content}</p>
                     <div className={`text-[10px] mt-1 flex justify-end gap-1 opacity-70 ${msg.sender === 'user' ? 'text-brand-200' : 'text-brand-400'}`}>
-                       <span>{msg.channel}</span>
-                       <span>•</span>
-                       <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{msg.channel}</span>
+                      <span>•</span>
+                      <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
                 </div>
@@ -185,7 +237,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ onNewMessage }) => {
                   placeholder={`Reply via ${activeChannel}...`}
                   className="flex-1 bg-brand-50 border-none rounded-full px-4 py-2 text-sm focus:ring-1 focus:ring-brand-300 outline-none placeholder:text-brand-400 text-brand-900"
                 />
-                <button 
+                <button
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim()}
                   className="p-2 bg-brand-800 text-white rounded-full hover:bg-brand-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
