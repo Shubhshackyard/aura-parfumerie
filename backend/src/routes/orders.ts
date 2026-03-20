@@ -154,29 +154,45 @@ router.post('/', authenticateToken, async (req: Request, res: Response): Promise
     // Validate items and calculate total
     let total = 0;
     const orderItems = [];
+    const stockUpdates: any[] = [];
 
     for (const item of items) {
       console.log('Processing order item:', {
         productId: item.productId,
         variantId: item.variantId,
         productName: item.productName,
+        variantName: item.variantName,
         quantity: item.quantity
       });
 
       // First try to find in regular products
       let product = await Product.findById(item.productId).catch(() => null);
       
-      if (product) {
-        // Regular product with variants
-        const variant = product.variants.find(
-          (v) => v._id.toString() === item.variantId
+      // Fallback: If ID is stale (after DB reseed), try matching by product name
+      if (!product && item.productName) {
+        product = await Product.findOne({ name: item.productName }).catch(() => null);
+      }
+
+      let variant: any = null;
+      
+      if (product && product.variants) {
+        variant = product.variants.find(
+          (v: any) => 
+            v._id?.toString() === item.variantId || 
+            v.id === item.variantId || 
+            v.sku === item.variantId ||
+            (item.variantName && v.name === item.variantName) ||
+            `${product._id.toString()}-${product.variants.indexOf(v)}` === item.variantId
         );
 
-        if (!variant) {
-          res.status(400).json({ error: `Variant ${item.variantId} not found for product ${product.name}` });
-          return;
+        // Fallback: If variant wasn't found (e.g. old ID in cart after DB reseed) but the product only has 1 variant
+        if (!variant && product.variants.length === 1) {
+          variant = product.variants[0];
         }
+      }
 
+      if (product && variant) {
+        // Regular product with variants
         // Check stock
         if (variant.stock < item.quantity) {
           res.status(400).json({ 
@@ -188,9 +204,15 @@ router.post('/', authenticateToken, async (req: Request, res: Response): Promise
         const itemTotal = variant.price * item.quantity;
         total += itemTotal;
 
+        const validVariantId = variant._id 
+          ? variant._id 
+          : mongoose.isValidObjectId(item.variantId) 
+            ? new mongoose.Types.ObjectId(item.variantId) 
+            : new mongoose.Types.ObjectId();
+
         orderItems.push({
-          productId: new mongoose.Types.ObjectId(item.productId),
-          variantId: variant._id,
+          productId: product._id,
+          variantId: validVariantId,
           productName: product.name,
           variantName: variant.name,
           price: variant.price,
@@ -198,21 +220,36 @@ router.post('/', authenticateToken, async (req: Request, res: Response): Promise
           image: product.image,
         });
 
-        // Update stock
-        variant.stock -= item.quantity;
-        await product.save();
+        // Queue stock update
+        stockUpdates.push({
+          type: 'product',
+          productId: product._id,
+          variantId: variant._id,
+          variantName: variant.name,
+          variantSku: variant.sku,
+          quantity: item.quantity
+        });
       } else {
         // Try to find in inventory offers
-        console.log('Product not found, trying InventoryOffer with ID:', item.productId);
-        const inventoryOffer = await InventoryOffer.findById(item.productId).catch((err) => {
+        console.log('Product/Variant not found, trying InventoryOffer with ID:', item.productId);
+        let inventoryOffer = await InventoryOffer.findById(item.productId).catch((err) => {
           console.log('InventoryOffer.findById error:', err.message);
           return null;
         });
         
+        // Fallback: If ID is stale, try matching by inventory offer item name
+        if (!inventoryOffer && item.productName) {
+          inventoryOffer = await InventoryOffer.findOne({ item: item.productName }).catch(() => null);
+        }
+
         console.log('InventoryOffer result:', inventoryOffer ? 'Found' : 'Not found');
         
         if (!inventoryOffer) {
-          res.status(400).json({ error: `Product not found: ${item.productName || item.productId}` });
+          if (product) {
+            res.status(400).json({ error: `Variant ${item.variantId} not found for product ${product.name}` });
+          } else {
+            res.status(400).json({ error: `Product not found: ${item.productName || item.productId}` });
+          }
           return;
         }
 
@@ -231,8 +268,8 @@ router.post('/', authenticateToken, async (req: Request, res: Response): Promise
         total += itemTotal;
 
         orderItems.push({
-          productId: new mongoose.Types.ObjectId(item.productId),
-          variantId: new mongoose.Types.ObjectId(item.variantId.split('-')[0]), // Extract the base ID
+          productId: inventoryOffer._id,
+          variantId: inventoryOffer._id, // Use valid offer ID instead of parsing the stale string
           productName: item.productName || inventoryOffer.item,
           variantName: item.variantName || `${inventoryOffer.size} - ${inventoryOffer.category}`,
           price: itemPrice,
@@ -240,9 +277,34 @@ router.post('/', authenticateToken, async (req: Request, res: Response): Promise
           image: item.image || '',
         });
 
-        // Update inventory stock
-        inventoryOffer.quantity -= item.quantity;
-        await inventoryOffer.save();
+        // Queue inventory stock update
+        stockUpdates.push({
+          type: 'inventoryOffer',
+          offerId: inventoryOffer._id,
+          quantity: item.quantity
+        });
+      }
+    }
+
+    // Apply all stock updates using updateOne to avoid full document validation issues
+    // and to ensure we only update stock if all items pass validation
+    for (const update of stockUpdates) {
+      if (update.type === 'product') {
+        const variantQuery = update.variantId 
+          ? { 'variants._id': update.variantId }
+          : update.variantSku 
+            ? { 'variants.sku': update.variantSku }
+            : { 'variants.name': update.variantName };
+
+        await Product.updateOne(
+          { _id: update.productId, ...variantQuery },
+          { $inc: { 'variants.$.stock': -update.quantity } }
+        );
+      } else if (update.type === 'inventoryOffer') {
+        await InventoryOffer.updateOne(
+          { _id: update.offerId },
+          { $inc: { quantity: -update.quantity } }
+        );
       }
     }
 

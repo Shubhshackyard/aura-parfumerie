@@ -3,7 +3,6 @@ import Product from '../models/Product.js';
 import { optionalAuth, authenticateToken, requireAdmin } from '../middleware/auth.js';
 import multer from 'multer';
 import mongoose from 'mongoose';
-import { ImportLog } from '../models/ImportLog.js';
 
 // Set up multer for in-memory uploads
 const storage = multer.memoryStorage();
@@ -104,6 +103,89 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// POST /api/products - Create a new product
+router.post('/', [authenticateToken, requireAdmin], async (req: Request, res: Response): Promise<void> => {
+  try {
+    const newProduct = new Product(req.body);
+    await newProduct.save();
+    
+    res.status(201).json({
+      product: {
+        id: newProduct._id.toString(),
+        name: newProduct.name,
+        description: newProduct.description,
+        category: newProduct.category,
+        notes: newProduct.notes,
+        image: newProduct.image,
+        variants: (newProduct.variants || []).map((variant, index) => ({
+          id: (variant as { _id?: mongoose.Types.ObjectId })._id?.toString() || variant.sku || `${newProduct._id.toString()}-${index}`,
+          name: variant.name,
+          type: variant.type,
+          price: variant.price,
+          stock: variant.stock,
+          sku: variant.sku,
+        })),
+      }
+    });
+  } catch (error) {
+    console.error('Create product error:', error);
+    res.status(500).json({ error: 'Failed to create product' });
+  }
+});
+
+// PUT /api/products/:id - Update an existing product
+router.put('/:id', [authenticateToken, requireAdmin], async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updatedProduct = await Product.findByIdAndUpdate(id, req.body, { new: true });
+    
+    if (!updatedProduct) {
+      res.status(404).json({ error: 'Product not found' });
+      return;
+    }
+    
+    res.json({
+      product: {
+        id: updatedProduct._id.toString(),
+        name: updatedProduct.name,
+        description: updatedProduct.description,
+        category: updatedProduct.category,
+        notes: updatedProduct.notes,
+        image: updatedProduct.image,
+        variants: (updatedProduct.variants || []).map((variant, index) => ({
+          id: (variant as { _id?: mongoose.Types.ObjectId })._id?.toString() || variant.sku || `${updatedProduct._id.toString()}-${index}`,
+          name: variant.name,
+          type: variant.type,
+          price: variant.price,
+          stock: variant.stock,
+          sku: variant.sku,
+        })),
+      }
+    });
+  } catch (error) {
+    console.error('Update product error:', error);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
+// DELETE /api/products/:id - Delete a product
+router.delete('/:id', [authenticateToken, requireAdmin], async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const deletedProduct = await Product.findByIdAndDelete(id);
+    
+    if (!deletedProduct) {
+      res.status(404).json({ error: 'Product not found' });
+      return;
+    }
+    
+    res.json({ message: 'Product deleted successfully' });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
 // POST /api/products/bulk - Bulk import products (JSON)
 router.post('/bulk', [authenticateToken, requireAdmin, upload.single('file')], async (req: Request, res: Response): Promise<void> => {
   try {
@@ -157,12 +239,14 @@ router.post('/bulk', [authenticateToken, requireAdmin, upload.single('file')], a
             if (category) product.category = category;
             if (image) product.image = image;
 
+            if (!product.variants) product.variants = [];
+
             for (const v of variants) {
               if (!v.sku) {
                 report.errors.push(`Variant in product ${product.name} missing sku`);
                 continue;
               }
-              const existingVariant = product.variants.find((pv) => pv.sku === v.sku);
+              const existingVariant = product.variants.find((pv: any) => pv.sku === v.sku);
               if (existingVariant) {
                 if (v.name) existingVariant.name = v.name;
                 if (v.price !== undefined) existingVariant.price = v.price;
@@ -174,7 +258,7 @@ router.post('/bulk', [authenticateToken, requireAdmin, upload.single('file')], a
                   price: v.price ?? 0,
                   stock: v.stock ?? 0,
                   sku: v.sku || ''
-                });
+                } as any);
               }
             }
 
@@ -192,10 +276,14 @@ router.post('/bulk', [authenticateToken, requireAdmin, upload.single('file')], a
                 if (category) product.category = category;
                 if (image) product.image = image;
 
-                const existingVariant = product.variants.find((pv) => pv.sku === v.sku)!;
-                if (v.name) existingVariant.name = v.name;
-                if (v.price !== undefined) existingVariant.price = v.price;
-                if (v.stock !== undefined) existingVariant.stock = v.stock;
+                if (!product.variants) product.variants = [];
+                
+                const existingVariant = product.variants.find((pv: any) => pv.sku === v.sku);
+                if (existingVariant) {
+                  if (v.name) existingVariant.name = v.name;
+                  if (v.price !== undefined) existingVariant.price = v.price;
+                  if (v.stock !== undefined) existingVariant.stock = v.stock;
+                }
 
                 await product.save();
                 report.updated++;
@@ -228,13 +316,6 @@ router.post('/bulk', [authenticateToken, requireAdmin, upload.single('file')], a
         console.error('Error importing product entry:', err);
         report.errors.push(String(err));
       }
-    }
-
-    // Save an import log for auditing
-    try {
-      await ImportLog.create({ uploadedBy: req.user?.email || req.userId, fileName: req.file.originalname, summary: { created: report.created, updated: report.updated, errors: report.errors.length, rawErrors: report.errors } });
-    } catch (logErr) {
-      console.error('Failed to save import log:', logErr);
     }
 
     res.status(200).json({ message: 'Import completed', report: { created: report.created, updated: report.updated, errors: report.errors } });

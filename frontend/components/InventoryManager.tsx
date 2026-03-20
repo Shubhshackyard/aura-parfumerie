@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Product, ProductVariant, ProductType } from '../types';
-import { productsApi } from '../services/api';
+import { productsApi, getToken } from '../services/api';
 import { Edit2, Plus, Save, X, Sparkles, Package, Trash2, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { generateProductDescription } from '../services/geminiService';
+
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
 
 interface InventoryManagerProps {
   products: Product[];
@@ -93,6 +95,13 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ products, se
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Import flow state
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   const [importStage, setImportStage] = useState<'idle' | 'preview' | 'confirm' | 'done'>('idle');
   const [parsedProducts, setParsedProducts] = useState<Product[] | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -103,6 +112,23 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ products, se
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastFileRef = useRef<File | null>(null);
+
+  // Helper to ensure payload passes strict Mongoose schema validations
+  const getSanitizedPayload = (prod: Product) => ({
+    name: prod.name,
+    description: prod.description,
+    category: prod.category,
+    notes: prod.notes,
+    image: prod.image,
+    variants: prod.variants.map(v => ({
+      name: v.name,
+      type: (v.type as any) === 'Incense Stick' ? 'Incense' : v.type, // Map legacy invalid enums safely
+      price: v.price,
+      stock: v.stock,
+      sku: v.sku,
+      ...(v.id && /^[a-fA-F0-9]{24}$/.test(v.id) ? { _id: v.id } : {}) // Pass valid _id to Mongoose
+    }))
+  });
 
   useEffect(() => {
     // reset messages when starting a new import
@@ -140,13 +166,32 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ products, se
     setView('form');
   };
 
-  const handleDelete = (productId: string) => {
+  const handleDelete = async (productId: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      setProducts(prev => prev.filter(p => p.id !== productId));
+      try {
+        const token = getToken();
+        const res = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
+          method: 'DELETE',
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.error || errData?.message || 'Failed to delete product in DB');
+        }
+
+        setProducts(prev => prev.filter(p => p.id !== productId));
+        showToast('Product deleted successfully.', 'success');
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        showToast(error.message || 'Failed to delete product', 'error');
+      }
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.category) return;
 
     const productToSave: Product = {
@@ -154,13 +199,55 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ products, se
       notes: tempNotes.split(',').map(s => s.trim()).filter(Boolean)
     };
 
-    if (isEditing) {
-      setProducts(prev => prev.map(p => p.id === productToSave.id ? productToSave : p));
-    } else {
-      setProducts(prev => [productToSave, ...prev]);
-    }
+    const payload = getSanitizedPayload(productToSave);
 
-    setView('list');
+    try {
+      const token = getToken();
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      if (isEditing) {
+        const res = await fetch(`${API_BASE_URL}/api/products/${productToSave.id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.error || errData?.message || 'Failed to update product in DB');
+        }
+        const data = await res.json();
+        
+        console.log(`Product changed/updated: ${productToSave.name} (ID: ${productToSave.id})`);
+        setProducts(prev => prev.map(p => p.id === productToSave.id ? (data.product || productToSave) : p));
+        showToast(`Inventory item ${productToSave.name} (ID: ${productToSave.id}) was updated.`, 'success');
+      } else {
+        const res = await fetch(`${API_BASE_URL}/api/products`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.error || errData?.message || 'Failed to create product in DB');
+        }
+        const data = await res.json();
+        const savedProduct = data.product || productToSave;
+        
+        console.log(`New product added: ${savedProduct.name} (ID: ${savedProduct.id})`);
+        setProducts(prev => [savedProduct, ...prev]);
+        showToast(`Inventory item ${savedProduct.name} (ID: ${savedProduct.id}) was added.`, 'success');
+      }
+
+      setView('list');
+    } catch (error: any) {
+      console.error('Save error:', error);
+      showToast(error.message || 'Failed to save product', 'error');
+    }
   };
 
   const handleGenerateDesc = async () => {
@@ -197,14 +284,40 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ products, se
   };
 
   // Quick stock update for list view
-  const handleQuickStockUpdate = (productId: string, variantId: string, newStock: number) => {
-     setProducts(prev => prev.map(p => {
-      if (p.id !== productId) return p;
-      return {
-        ...p,
-        variants: p.variants.map(v => v.id === variantId ? { ...v, stock: newStock } : v)
-      };
-    }));
+  const handleQuickStockUpdate = async (productId: string, variantId: string, newStock: number) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const updatedProduct = {
+      ...product,
+      variants: product.variants.map(v => v.id === variantId ? { ...v, stock: newStock } : v)
+    };
+
+    // Optimistic local update for snappy UI
+    setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
+
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(getSanitizedPayload(updatedProduct))
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || errData?.message || 'Failed to update stock in DB');
+      }
+      
+      console.log(`Product changed/updated: ${product.name} (ID: ${productId})`);
+      showToast(`Inventory item ${product.name} (ID: ${productId}) was updated.`, 'success');
+    } catch (err: any) {
+      console.error('Stock update error:', err);
+      showToast('Failed to update stock in DB', 'error');
+    }
   };
 
   // Import helpers
@@ -619,6 +732,16 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ products, se
           </div>
         )}
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-3 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-brand-900 text-brand-50 border border-brand-800'}`}>
+          <span className="text-sm font-medium">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="opacity-80 hover:opacity-100 transition p-1">
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
