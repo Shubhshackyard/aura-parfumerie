@@ -14,71 +14,71 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 6000;
 
-// CORS configuration - allow multiple localhost ports in development
+// 🌐 Allowed origins (IMPORTANT: add your Render frontend URL in env)
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5173',
-  process.env.FRONTEND_URL
+  process.env.FRONTEND_URL // e.g. https://your-frontend.onrender.com
 ].filter(Boolean);
 
-const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Allow requests with no origin (like mobile apps or Postman)
+// 🛡️ CORS configuration
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (Postman, mobile apps)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(null, true); // Allow all origins in development
+      return callback(null, true);
     }
+
+    console.log('❌ CORS blocked origin:', origin);
+    return callback(new Error('Not allowed by CORS'));
   },
-  credentials: true,
-  optionsSuccessStatus: 200
+  credentials: true
 };
 
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Health check route
+// 🌿 Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.get("/", (req, res) => {
+// 🏠 Root route
+app.get('/', (req, res) => {
   res.json({
-    status: "ok",
-    service: "Aura Parfumerie API",
+    status: 'ok',
+    service: 'Aura Parfumerie API',
     timestamp: new Date()
   });
 });
 
-// API Routes
+// 🔌 API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/offers', offerRoutes);
 
-// Error handling middleware
+// ❌ Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err.message);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error('🔥 Error:', err.message);
+  res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
-// Start server
+// 🚀 Start server
 const startServer = async () => {
   try {
-    // Connect to MongoDB
     await connectDB();
-    
+
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
