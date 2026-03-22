@@ -47,6 +47,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "Aura Parfumerie API",
+    timestamp: new Date()
+  });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
